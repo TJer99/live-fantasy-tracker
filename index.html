@@ -43,9 +43,17 @@
 
   .main-row{display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap;}
   .matchup-panel{flex:1 1 480px; border:1px solid var(--board-line); border-radius:10px; padding:16px 20px; background:rgba(255,255,255,0.02); min-height:300px;}
-  .sidebar{flex:1 1 240px; max-width:300px; display:flex; flex-direction:column; gap:9px;}
-  .card{padding:10px 12px; border-radius:8px; border:1px solid var(--board-line); background:rgba(255,255,255,0.02); cursor:pointer;}
+  .sidebar{
+    flex:1 1 240px; max-width:300px; display:flex; flex-direction:column; gap:6px;
+    position:sticky; top:10px; max-height:calc(100vh - 130px);
+  }
+  .scroll-list{display:flex; flex-direction:column; gap:6px; overflow-y:auto; padding-right:4px;}
+  .scroll-list::-webkit-scrollbar{width:6px;}
+  .scroll-list::-webkit-scrollbar-thumb{background:var(--board-line); border-radius:3px;}
+  .card{padding:6px 10px; border-radius:6px; border:1px solid var(--board-line); background:rgba(255,255,255,0.02); cursor:pointer; font-size:11px;}
   .card.mine{border-color:var(--green); background:rgba(111,191,139,0.07);}
+  .card .row span{font-size:11px;}
+  .card .small{font-size:9px;}
 
   #setupPanel{margin-top:22px; border-top:2px dashed var(--board-line); padding-top:18px;}
   .setup-grid{display:flex; gap:20px; flex-wrap:wrap;}
@@ -90,12 +98,12 @@
 
     <div class="sidebar">
       <h3 class="dim small">League scoreboard</h3>
-      <div id="leagueScoreboard"><p class="dim small">Not connected yet.</p></div>
+      <div id="leagueScoreboard" class="scroll-list"><p class="dim small">Not connected yet.</p></div>
     </div>
 
     <div class="sidebar">
       <h3 class="dim small">NFL scoreboard · live</h3>
-      <div id="nflGames"><p class="dim small">Loading…</p></div>
+      <div id="nflGames" class="scroll-list"><p class="dim small">Loading…</p></div>
     </div>
   </div>
 
