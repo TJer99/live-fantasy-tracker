@@ -283,10 +283,11 @@
       const res = await fetch(YAHOO_PROXY_URL + 'api/users;use_login=1/games?format=json', {
         headers: { 'Authorization': 'Bearer ' + accessToken }
       });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const bodyText = await res.text();
+      if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + bodyText.slice(0, 300));
       document.getElementById('yahoo-me').textContent = 'Connected';
     } catch (e) {
-      document.getElementById('yahoo-me').textContent = 'Token OK, data call failed (' + e.message + ')';
+      document.getElementById('yahoo-me').textContent = 'Data call failed: ' + e.message;
     }
   }
   loadYahoo();
