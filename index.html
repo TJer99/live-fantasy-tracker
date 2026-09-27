@@ -239,8 +239,8 @@
 
   // ---------- Yahoo OAuth ----------
   const YAHOO_CLIENT_ID = "dj0yJmk9UWE5a2tvb0NxQzAwJmQ9WVdrOU5rWnBXbkUzTkVFbWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PWVm";
-  const YAHOO_CLIENT_SECRET = "85bcefc2e98fa4af0909b3b4ecd06b26da2a9568";
   const YAHOO_REDIRECT_URI = "https://tjer99.github.io/live-fantasy-tracker/callback.html";
+  const YAHOO_PROXY_URL = "https://yahoo-oauth-proxy.tjer99.workers.dev/";
 
   document.getElementById('yahooLoginBtn').addEventListener('click', () => {
     const authUrl = 'https://api.login.yahoo.com/oauth2/request_auth?' + new URLSearchParams({
@@ -258,17 +258,10 @@
     if (!refreshToken) return false;
     if (expires && Date.now() < expires - 60000) return true;
     try {
-      const res = await fetch('https://api.login.yahoo.com/oauth2/get_token', {
+      const res = await fetch(YAHOO_PROXY_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': 'Basic ' + btoa(YAHOO_CLIENT_ID + ':' + YAHOO_CLIENT_SECRET)
-        },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          redirect_uri: YAHOO_REDIRECT_URI,
-          refresh_token: refreshToken
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grant_type: 'refresh_token', refresh_token: refreshToken })
       });
       const data = await res.json();
       if (data.access_token) {
@@ -287,7 +280,7 @@
     if (!ok) return;
     const accessToken = store.get('yahoo_access_token');
     try {
-      const res = await fetch('https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games?format=json', {
+      const res = await fetch(YAHOO_PROXY_URL + 'api/users;use_login=1/games?format=json', {
         headers: { 'Authorization': 'Bearer ' + accessToken }
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);

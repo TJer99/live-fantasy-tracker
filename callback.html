@@ -14,9 +14,7 @@
 <body>
 <p id="msg">Finishing Yahoo login…</p>
 <script>
-  const CLIENT_ID = "dj0yJmk9UWE5a2tvb0NxQzAwJmQ9WVdrOU5rWnBXbkUzTkVFbWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PWVm";
-  const CLIENT_SECRET = "85bcefc2e98fa4af0909b3b4ecd06b26da2a9568";
-  const REDIRECT_URI = "https://tjer99.github.io/live-fantasy-tracker/callback.html";
+  const PROXY_URL = "https://yahoo-oauth-proxy.tjer99.workers.dev/";
 
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
@@ -27,17 +25,10 @@
       ? 'Yahoo login was cancelled or denied.'
       : 'No authorization code found — go back and try logging in again.';
   } else {
-    fetch('https://api.login.yahoo.com/oauth2/get_token', {
+    fetch(PROXY_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': 'Basic ' + btoa(CLIENT_ID + ':' + CLIENT_SECRET)
-      },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        redirect_uri: REDIRECT_URI,
-        code: code
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code })
     })
     .then(r => r.json())
     .then(data => {
