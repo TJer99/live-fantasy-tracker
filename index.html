@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Fantasy Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+  :root{
+    --board:#16241d; --board-line:#2b4536; --chalk:#eef2ea; --chalk-dim:#a9bcae;
+    --yellow:#f2c94c; --red:#e8664f; --green:#6fbf8b; --blue:#5b9bd5;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--board); color:var(--chalk);
+    font-family:'IBM Plex Mono', monospace; padding:20px 18px 40px;
+  }
+  h1,h2,h3{font-family:'Oswald', sans-serif; text-transform:uppercase; letter-spacing:0.04em; margin:0;}
+  .dim{color:var(--chalk-dim);}
+  .small{font-size:11px;}
+  .row{display:flex; align-items:center;}
+  .between{justify-content:space-between;}
+  .col{display:flex; flex-direction:column;}
+  .hidden{display:none !important;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+
+  .topbar{display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap; border-bottom:2px dashed var(--board-line); padding-bottom:14px; margin-bottom:16px;}
+  .tabs{display:flex; gap:10px; flex-wrap:wrap;}
+  .tab{
+    font-family:'IBM Plex Mono', monospace; text-align:left; cursor:pointer; padding:9px 16px;
+    border-radius:8px; border:1px solid var(--board-line); background:transparent; color:var(--chalk);
+    min-width:210px; opacity:0.6;
+  }
+  .tab.active{border:2px solid var(--green); background:rgba(111,191,139,0.07); opacity:1;}
+  .tab .league-name{font-family:'Oswald', sans-serif; text-transform:uppercase; font-size:11px; color:var(--chalk-dim); letter-spacing:0.03em; display:block;}
+  .tab .score-line{display:flex; justify-content:space-between; font-size:13px; margin-top:4px;}
+
+  .utils{display:flex; flex-direction:column; align-items:flex-end; gap:6px;}
+  .pill-btn{
+    font-family:'IBM Plex Mono', monospace; text-decoration:none; padding:8px 16px; border-radius:20px;
+    border:1px solid var(--chalk-dim); background:transparent; color:var(--chalk); font-size:12px; cursor:pointer;
+  }
+
+  .main-row{display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap;}
+  .matchup-panel{flex:1 1 480px; border:1px solid var(--board-line); border-radius:10px; padding:16px 20px; background:rgba(255,255,255,0.02); min-height:300px;}
+  .sidebar{flex:1 1 240px; max-width:300px; display:flex; flex-direction:column; gap:9px;}
+  .card{padding:10px 12px; border-radius:8px; border:1px solid var(--board-line); background:rgba(255,255,255,0.02); cursor:pointer;}
+  .card.mine{border-color:var(--green); background:rgba(111,191,139,0.07);}
+
+  #setupPanel{margin-top:22px; border-top:2px dashed var(--board-line); padding-top:18px;}
+  .setup-grid{display:flex; gap:20px; flex-wrap:wrap;}
+  .setup-card{flex:1 1 320px; border:1px solid var(--board-line); border-radius:10px; padding:16px 20px; background:rgba(255,255,255,0.02);}
+  .setup-card label{display:block; font-size:11px; color:var(--chalk-dim); margin:10px 0 4px;}
+  .setup-card input{
+    width:100%; padding:8px 10px; border-radius:6px; border:1px solid var(--board-line);
+    background:rgba(255,255,255,0.03); color:var(--chalk); font-family:'IBM Plex Mono', monospace; font-size:12px;
+  }
+  .save-btn{margin-top:12px; padding:9px 20px; border-radius:6px; border:none; background:var(--green); color:var(--board); font-weight:700; font-size:12px; cursor:pointer;}
+  .status-ok{color:var(--green);}
+  .status-off{color:var(--chalk-dim);}
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="tabs" id="leagueTabs">
+      <button class="tab active" data-league="yahoo">
+        <span class="league-name">Mushroom Clouds 20 (Yahoo)</span>
+        <span class="score-line"><span id="yahoo-me">Not connected</span></span>
+      </button>
+      <button class="tab" data-league="sleeper">
+        <span class="league-name">Sleeper league</span>
+        <span class="score-line"><span id="sleeper-me">Not connected</span></span>
+      </button>
+      <button class="tab" data-league="espn">
+        <span class="league-name">ESPN league</span>
+        <span class="score-line"><span id="espn-me">Not connected</span></span>
+      </button>
+    </div>
+    <div class="utils">
+      <button class="pill-btn" id="setupBtn">⚙ Setup</button>
+      <span class="dim small" id="lastUpdated"></span>
+    </div>
+  </div>
+
+  <div class="main-row">
+    <div class="matchup-panel" id="matchupPanel">
+      <p class="dim">This league isn't connected yet — open <b>Setup</b> to connect it.</p>
+    </div>
+
+    <div class="sidebar">
+      <h3 class="dim small">League scoreboard</h3>
+      <div id="leagueScoreboard"><p class="dim small">Not connected yet.</p></div>
+    </div>
+
+    <div class="sidebar">
+      <h3 class="dim small">NFL scoreboard · live</h3>
+      <div id="nflGames"><p class="dim small">Loading…</p></div>
+    </div>
+  </div>
+
+  <div id="setupPanel" class="hidden">
+    <h2>Setup — connect your leagues</h2>
+    <div class="setup-grid">
+
+      <div class="setup-card">
+        <h3 class="small dim">Yahoo — Mushroom Clouds 20</h3>
+        <p class="small dim">Real login, one time. (Login button will go live once the Yahoo Developer app is registered — next step.)</p>
+        <button class="save-btn" disabled style="opacity:0.5; cursor:not-allowed;">Log in with Yahoo (coming soon)</button>
+      </div>
+
+      <div class="setup-card">
+        <h3 class="small dim">Sleeper league</h3>
+        <p class="small dim">Sleeper's API is public — just needs your league ID (the number in your league's Sleeper URL).</p>
+        <label for="sleeperLeagueId">Sleeper League ID</label>
+        <input type="text" id="sleeperLeagueId" placeholder="e.g. 987654321012345678">
+        <button class="save-btn" id="saveSleeperBtn">Save</button>
+      </div>
+
+      <div class="setup-card">
+        <h3 class="small dim">ESPN league</h3>
+        <p class="small dim">One-time cookie paste (see chat for the exact DevTools steps for this device).</p>
+        <label for="espnLeagueId">ESPN League ID</label>
+        <input type="text" id="espnLeagueId" placeholder="league id from your ESPN URL">
+        <label for="espnS2">espn_s2</label>
+        <input type="text" id="espnS2" placeholder="paste value here">
+        <label for="espnSwid">SWID</label>
+        <input type="text" id="espnSwid" placeholder="paste value here">
+        <button class="save-btn" id="saveEspnBtn">Save</button>
+      </div>
+
+    </div>
+
+    <div class="setup-card" style="margin-top:18px; max-width:640px;">
+      <h3 class="small dim">Connection status</h3>
+      <div id="connStatus"></div>
+    </div>
+  </div>
+
+<script>
+  // ---------- Setup panel toggle ----------
+  const setupPanel = document.getElementById('setupPanel');
+  document.getElementById('setupBtn').addEventListener('click', () => {
+    setupPanel.classList.toggle('hidden');
+    renderConnectionStatus();
+  });
+
+  // ---------- Local storage helpers ----------
+  const store = {
+    get(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } },
+    set(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+  };
+
+  // ---------- Sleeper setup ----------
+  const sleeperInput = document.getElementById('sleeperLeagueId');
+  sleeperInput.value = store.get('sleeperLeagueId') || '';
+  document.getElementById('saveSleeperBtn').addEventListener('click', () => {
+    store.set('sleeperLeagueId', sleeperInput.value.trim());
+    renderConnectionStatus();
+    loadSleeper();
+  });
+
+  // ---------- ESPN setup ----------
+  document.getElementById('espnLeagueId').value = store.get('espnLeagueId') || '';
+  document.getElementById('espnS2').value = store.get('espnS2') || '';
+  document.getElementById('espnSwid').value = store.get('espnSwid') || '';
+  document.getElementById('saveEspnBtn').addEventListener('click', () => {
+    store.set('espnLeagueId', document.getElementById('espnLeagueId').value.trim());
+    store.set('espnS2', document.getElementById('espnS2').value.trim());
+    store.set('espnSwid', document.getElementById('espnSwid').value.trim());
+    renderConnectionStatus();
+  });
+
+  function renderConnectionStatus() {
+    const sleeperId = store.get('sleeperLeagueId');
+    const espnId = store.get('espnLeagueId');
+    const espnCookies = store.get('espnS2') && store.get('espnSwid');
+    document.getElementById('connStatus').innerHTML = `
+      <div class="row between small" style="padding:4px 0;"><span>Mushroom Clouds 20 (Yahoo)</span><span class="status-off">○ Not connected</span></div>
+      <div class="row between small" style="padding:4px 0;"><span>Sleeper league</span><span class="${sleeperId ? 'status-ok' : 'status-off'}">${sleeperId ? '● Connected' : '○ Not connected'}</span></div>
+      <div class="row between small" style="padding:4px 0;"><span>ESPN league</span><span class="${espnId && espnCookies ? 'status-ok' : 'status-off'}">${espnId && espnCookies ? '● Connected' : '○ Not connected'}</span></div>
+    `;
+  }
+  renderConnectionStatus();
+
+  // ---------- NFL scoreboard (public ESPN endpoint, no auth) ----------
+  async function loadNFL() {
+    const el = document.getElementById('nflGames');
+    try {
+      const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard');
+      const data = await res.json();
+      const events = data.events || [];
+      el.innerHTML = '';
+      events.forEach(ev => {
+        const comp = ev.competitions[0];
+        const home = comp.competitors.find(c => c.homeAway === 'home');
+        const away = comp.competitors.find(c => c.homeAway === 'away');
+        const status = comp.status.type.shortDetail;
+        const card = document.createElement('div');
+        card.className = 'card col';
+        card.style.gap = '4px';
+        card.innerHTML = `
+          <div class="row between"><span>${away.team.abbreviation}</span><span class="mono">${away.score ?? ''}</span></div>
+          <div class="row between"><span class="dim">${home.team.abbreviation}</span><span class="mono dim">${home.score ?? ''}</span></div>
+          <div class="dim small">${status}</div>`;
+        el.appendChild(card);
+      });
+      if (!events.length) el.innerHTML = '<p class="dim small">No games right now.</p>';
+      document.getElementById('lastUpdated').textContent = 'Last updated ' + new Date().toLocaleTimeString();
+    } catch (e) {
+      el.innerHTML = '<p class="dim small">Could not load NFL scores.</p>';
+    }
+  }
+  loadNFL();
+  setInterval(loadNFL, 30000);
+
+  // ---------- Sleeper league (public API) ----------
+  async function loadSleeper() {
+    const leagueId = store.get('sleeperLeagueId');
+    if (!leagueId) return;
+    try {
+      const res = await fetch(`https://api.sleeper.app/v1/league/${leagueId}`);
+      const league = await res.json();
+      document.getElementById('sleeper-me').textContent = league.name || 'Connected';
+    } catch (e) {
+      document.getElementById('sleeper-me').textContent = 'Error loading league';
+    }
+  }
+  loadSleeper();
+
+  // ---------- Tab switching (placeholder — full matchup rendering comes next) ----------
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
