@@ -231,7 +231,9 @@
     try {
       const res = await fetch(`https://api.sleeper.app/v1/league/${leagueId}`);
       const league = await res.json();
+      if (league.name) store.set('sleeperLeagueName', league.name);
       document.getElementById('sleeper-me').textContent = league.name || 'Connected';
+      if (activeLeague === 'sleeper') renderMatchupPanel('sleeper');
     } catch (e) {
       document.getElementById('sleeper-me').textContent = 'Error loading league';
     }
