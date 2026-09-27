@@ -166,6 +166,7 @@
     store.set('sleeperLeagueId', sleeperInput.value.trim());
     renderConnectionStatus();
     loadSleeper();
+    if (typeof activeLeague !== 'undefined' && activeLeague === 'sleeper') renderMatchupPanel('sleeper');
   });
 
   // ---------- ESPN setup ----------
@@ -280,35 +281,86 @@
     renderConnectionStatus();
     if (!ok) return;
     const accessToken = store.get('yahoo_access_token');
-    const variants = [
-      { label: 'game/nfl (public metadata)', path: 'api/game/nfl?format=json' },
-      { label: 'users;use_login=1 (no subresource)', path: 'api/users;use_login=1?format=json' },
-      { label: 'users;use_login=1/games', path: 'api/users;use_login=1/games?format=json' },
-      { label: 'users;use_login=1/games;game_keys=nfl', path: 'api/users;use_login=1/games;game_keys=nfl?format=json' }
-    ];
-    const results = [];
-    for (const v of variants) {
-      try {
-        const res = await fetch(YAHOO_PROXY_URL + v.path, {
-          headers: { 'Authorization': 'Bearer ' + accessToken }
-        });
-        const bodyText = await res.text();
-        results.push(v.label + ' -> HTTP ' + res.status + ': ' + bodyText.slice(0, 200));
-      } catch (e) {
-        results.push(v.label + ' -> threw: ' + e.message);
-      }
+    try {
+      const res = await fetch(YAHOO_PROXY_URL + 'api/users;use_login=1/games?format=json', {
+        headers: { 'Authorization': 'Bearer ' + accessToken }
+      });
+      const bodyText = await res.text();
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      document.getElementById('yahoo-me').textContent = 'Connected';
+    } catch (e) {
+      document.getElementById('yahoo-me').textContent = 'Paused — see chat';
     }
-    document.getElementById('yahoo-me').textContent = results.join(' || ');
+    renderConnectionStatus();
+    if (activeLeague === 'yahoo') renderMatchupPanel('yahoo');
   }
   loadYahoo();
 
-  // ---------- Tab switching (placeholder — full matchup rendering comes next) ----------
+  // ---------- ESPN league (via Worker proxy, cookie-based) ----------
+  async function loadESPN() {
+    const leagueId = store.get('espnLeagueId');
+    const s2 = store.get('espnS2');
+    const swid = store.get('espnSwid');
+    if (!leagueId || !s2 || !swid) return;
+    try {
+      const res = await fetch(YAHOO_PROXY_URL + 'espn/seasons/2026/segments/0/leagues/' + leagueId + '?view=mSettings', {
+        headers: { 'X-Espn-S2': s2, 'X-Espn-Swid': swid }
+      });
+      const data = await res.json();
+      if (data && data.settings && data.settings.name) {
+        store.set('espnLeagueName', data.settings.name);
+        document.getElementById('espn-me').textContent = data.settings.name;
+      } else {
+        document.getElementById('espn-me').textContent = 'Connected, no league name returned';
+      }
+    } catch (e) {
+      document.getElementById('espn-me').textContent = 'Error loading league';
+    }
+    renderConnectionStatus();
+    if (activeLeague === 'espn') renderMatchupPanel('espn');
+  }
+  loadESPN();
+  document.getElementById('saveEspnBtn').addEventListener('click', loadESPN);
+
+  // ---------- Tab switching: real interactivity ----------
+  let activeLeague = 'yahoo';
+
+  function leagueDisplayName(key) {
+    if (key === 'yahoo') return 'Mushroom Clouds 20 (Yahoo)';
+    if (key === 'sleeper') return store.get('sleeperLeagueName') || 'Sleeper league';
+    if (key === 'espn') return store.get('espnLeagueName') || 'ESPN league';
+    return key;
+  }
+
+  function isLeagueConnected(key) {
+    if (key === 'yahoo') return !!store.get('yahoo_access_token');
+    if (key === 'sleeper') return !!store.get('sleeperLeagueId');
+    if (key === 'espn') return !!(store.get('espnLeagueId') && store.get('espnS2') && store.get('espnSwid'));
+    return false;
+  }
+
+  function renderMatchupPanel(key) {
+    activeLeague = key;
+    const panel = document.getElementById('matchupPanel');
+    const name = leagueDisplayName(key);
+    if (!isLeagueConnected(key)) {
+      panel.innerHTML = '<p class="dim">This league isn\'t connected yet — open <b>Setup</b> to connect it.</p>';
+      return;
+    }
+    panel.innerHTML =
+      '<h3 class="chalk" style="margin-bottom:10px;">' + name + '</h3>' +
+      '<p class="dim">Connected — full head-to-head matchup view for this league is coming next.</p>';
+  }
+
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
+      renderMatchupPanel(tab.dataset.league);
     });
   });
+
+  renderMatchupPanel('yahoo');
 </script>
 </body>
 </html>
