@@ -280,16 +280,25 @@
     renderConnectionStatus();
     if (!ok) return;
     const accessToken = store.get('yahoo_access_token');
-    try {
-      const res = await fetch(YAHOO_PROXY_URL + 'api/users;use_login=1/games?format=json', {
-        headers: { 'Authorization': 'Bearer ' + accessToken }
-      });
-      const bodyText = await res.text();
-      if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + bodyText.slice(0, 300));
-      document.getElementById('yahoo-me').textContent = 'Connected';
-    } catch (e) {
-      document.getElementById('yahoo-me').textContent = 'Data call failed: ' + e.message;
+    const variants = [
+      { label: 'game/nfl (public metadata)', path: 'api/game/nfl?format=json' },
+      { label: 'users;use_login=1 (no subresource)', path: 'api/users;use_login=1?format=json' },
+      { label: 'users;use_login=1/games', path: 'api/users;use_login=1/games?format=json' },
+      { label: 'users;use_login=1/games;game_keys=nfl', path: 'api/users;use_login=1/games;game_keys=nfl?format=json' }
+    ];
+    const results = [];
+    for (const v of variants) {
+      try {
+        const res = await fetch(YAHOO_PROXY_URL + v.path, {
+          headers: { 'Authorization': 'Bearer ' + accessToken }
+        });
+        const bodyText = await res.text();
+        results.push(v.label + ' -> HTTP ' + res.status + ': ' + bodyText.slice(0, 200));
+      } catch (e) {
+        results.push(v.label + ' -> threw: ' + e.message);
+      }
     }
+    document.getElementById('yahoo-me').textContent = results.join(' || ');
   }
   loadYahoo();
 
