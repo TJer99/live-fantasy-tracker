@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Connecting to Yahoo…</title>
+<style>
+  body{
+    margin:0; min-height:100vh; background:#16241d; color:#eef2ea;
+    font-family:'IBM Plex Mono', monospace; display:flex; align-items:center; justify-content:center;
+  }
+  p{max-width:420px; text-align:center; padding:20px;}
+</style>
+</head>
+<body>
+<p id="msg">Finishing Yahoo login…</p>
+<script>
+  const CLIENT_ID = "dj0yJmk9UWE5a2tvb0NxQzAwJmQ9WVdrOU5rWnBXbkUzTkVFbWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PWVm";
+  const CLIENT_SECRET = "85bcefc2e98fa4af0909b3b4ecd06b26da2a9568";
+  const REDIRECT_URI = "https://tjer99.github.io/live-fantasy-tracker/callback.html";
+
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const msg = document.getElementById('msg');
+
+  if (!code) {
+    msg.textContent = params.get('error')
+      ? 'Yahoo login was cancelled or denied.'
+      : 'No authorization code found — go back and try logging in again.';
+  } else {
+    fetch('https://api.login.yahoo.com/oauth2/get_token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + btoa(CLIENT_ID + ':' + CLIENT_SECRET)
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        redirect_uri: REDIRECT_URI,
+        code: code
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.access_token) {
+        localStorage.setItem('yahoo_access_token', JSON.stringify(data.access_token));
+        localStorage.setItem('yahoo_refresh_token', JSON.stringify(data.refresh_token));
+        localStorage.setItem('yahoo_token_expires', JSON.stringify(Date.now() + data.expires_in * 1000));
+        msg.textContent = 'Yahoo connected! Redirecting…';
+        setTimeout(() => { window.location.href = './'; }, 900);
+      } else {
+        msg.textContent = 'Yahoo login failed: ' + (data.error_description || JSON.stringify(data));
+      }
+    })
+    .catch(e => { msg.textContent = 'Error exchanging code: ' + e; });
+  }
+</script>
+</body>
+</html>

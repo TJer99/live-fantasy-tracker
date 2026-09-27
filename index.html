@@ -113,8 +113,8 @@
 
       <div class="setup-card">
         <h3 class="small dim">Yahoo — Mushroom Clouds 20</h3>
-        <p class="small dim">Real login, one time. (Login button will go live once the Yahoo Developer app is registered — next step.)</p>
-        <button class="save-btn" disabled style="opacity:0.5; cursor:not-allowed;">Log in with Yahoo (coming soon)</button>
+        <p class="small dim">Real login, one time. Click below, sign into Yahoo, and you're connected — it refreshes itself after that.</p>
+        <button class="save-btn" id="yahooLoginBtn">Log in with Yahoo</button>
       </div>
 
       <div class="setup-card">
@@ -183,8 +183,9 @@
     const sleeperId = store.get('sleeperLeagueId');
     const espnId = store.get('espnLeagueId');
     const espnCookies = store.get('espnS2') && store.get('espnSwid');
+    const yahooConnected = !!store.get('yahoo_access_token');
     document.getElementById('connStatus').innerHTML = `
-      <div class="row between small" style="padding:4px 0;"><span>Mushroom Clouds 20 (Yahoo)</span><span class="status-off">○ Not connected</span></div>
+      <div class="row between small" style="padding:4px 0;"><span>Mushroom Clouds 20 (Yahoo)</span><span class="${yahooConnected ? 'status-ok' : 'status-off'}">${yahooConnected ? '● Connected' : '○ Not connected'}</span></div>
       <div class="row between small" style="padding:4px 0;"><span>Sleeper league</span><span class="${sleeperId ? 'status-ok' : 'status-off'}">${sleeperId ? '● Connected' : '○ Not connected'}</span></div>
       <div class="row between small" style="padding:4px 0;"><span>ESPN league</span><span class="${espnId && espnCookies ? 'status-ok' : 'status-off'}">${espnId && espnCookies ? '● Connected' : '○ Not connected'}</span></div>
     `;
@@ -235,6 +236,67 @@
     }
   }
   loadSleeper();
+
+  // ---------- Yahoo OAuth ----------
+  const YAHOO_CLIENT_ID = "dj0yJmk9UWE5a2tvb0NxQzAwJmQ9WVdrOU5rWnBXbkUzTkVFbWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PWVm";
+  const YAHOO_CLIENT_SECRET = "85bcefc2e98fa4af0909b3b4ecd06b26da2a9568";
+  const YAHOO_REDIRECT_URI = "https://tjer99.github.io/live-fantasy-tracker/callback.html";
+
+  document.getElementById('yahooLoginBtn').addEventListener('click', () => {
+    const authUrl = 'https://api.login.yahoo.com/oauth2/request_auth?' + new URLSearchParams({
+      client_id: YAHOO_CLIENT_ID,
+      redirect_uri: YAHOO_REDIRECT_URI,
+      response_type: 'code',
+      language: 'en-us'
+    });
+    window.location.href = authUrl;
+  });
+
+  async function yahooRefreshIfNeeded() {
+    const expires = store.get('yahoo_token_expires');
+    const refreshToken = store.get('yahoo_refresh_token');
+    if (!refreshToken) return false;
+    if (expires && Date.now() < expires - 60000) return true;
+    try {
+      const res = await fetch('https://api.login.yahoo.com/oauth2/get_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + btoa(YAHOO_CLIENT_ID + ':' + YAHOO_CLIENT_SECRET)
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          redirect_uri: YAHOO_REDIRECT_URI,
+          refresh_token: refreshToken
+        })
+      });
+      const data = await res.json();
+      if (data.access_token) {
+        store.set('yahoo_access_token', data.access_token);
+        store.set('yahoo_refresh_token', data.refresh_token || refreshToken);
+        store.set('yahoo_token_expires', Date.now() + data.expires_in * 1000);
+        return true;
+      }
+    } catch (e) { /* fall through */ }
+    return false;
+  }
+
+  async function loadYahoo() {
+    const ok = await yahooRefreshIfNeeded();
+    renderConnectionStatus();
+    if (!ok) return;
+    const accessToken = store.get('yahoo_access_token');
+    try {
+      const res = await fetch('https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games?format=json', {
+        headers: { 'Authorization': 'Bearer ' + accessToken }
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      document.getElementById('yahoo-me').textContent = 'Connected';
+    } catch (e) {
+      document.getElementById('yahoo-me').textContent = 'Token OK, data call failed (' + e.message + ')';
+    }
+  }
+  loadYahoo();
 
   // ---------- Tab switching (placeholder — full matchup rendering comes next) ----------
   document.querySelectorAll('.tab').forEach(tab => {
